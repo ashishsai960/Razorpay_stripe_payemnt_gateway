@@ -18,7 +18,7 @@ const pool = new Pool({
 	port: process.env.PG_PORT,
 });
 
-
+//this is the endpoint for razorpay payment
 router.post("/orders", async (req, res) => {
 	try {
 		const instance = new Razorpay({
@@ -30,7 +30,7 @@ router.post("/orders", async (req, res) => {
 			amount: req.body.amount * 100,
 			currency: "INR",
 			receipt: crypto.randomBytes(10).toString("hex"),
-			notes: { userId: req.body.userId }
+			notes: { userId: req.body.userId }  //you also get other fields from frontend and store in the notes which can be retrieved through webhook after completion
 		};
 		instance.orders.create(options, (error, order) => {
 			if (error) {
@@ -45,6 +45,8 @@ router.post("/orders", async (req, res) => {
 	}
 });
 
+
+//the below verification part might not be required if your already usinng webhooks beacuse the verification will take place there
 router.post("/verify", async (req, res) => {
 	try {
 		const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
@@ -65,7 +67,7 @@ router.post("/verify", async (req, res) => {
 			const order = await instance.orders.fetch(razorpay_order_id);
 			const userId = order.notes.userId; // Retrieve userId from notes
 
-			console.log("Payment verified for user:", userId);
+			//	console.log("Payment verified for user:", userId);
 			return res.status(200).json({ message: "Payment verified successfully" });
 		} else {
 			return res.status(400).json({ message: "Invalid signature sent!" });
@@ -76,8 +78,9 @@ router.post("/verify", async (req, res) => {
 	}
 });
 
+//this is the enpoint fot stripe payment
 router.post("/create-checkout-session", async (req, res) => {
-	const { name, amount, userId } = req.body;
+	const { name, amount, userId } = req.body;  //you also get other fields from frontend and store in the metadata which can be retrieved through webhook after completion
 	try {
 		const session = await stripe.checkout.sessions.create({
 			payment_method_types: ["card"],
@@ -94,8 +97,8 @@ router.post("/create-checkout-session", async (req, res) => {
 				},
 			],
 			mode: "payment",
-			success_url: "http://44.211.47.208:3000",
-			cancel_url: "http://44.211.47.208:3000",
+			success_url: "http://44.211.47.208:3000", //mention the your success url here
+			cancel_url: "http://44.211.47.208:3000",//mention the your url here;
 			metadata: {
 				userId: userId,
 			}
@@ -109,6 +112,7 @@ router.post("/create-checkout-session", async (req, res) => {
 	}
 });
 
+//stripe webhook
 router.post("/webhook", express.json({ type: "application/json" }), async (req, res) => {
 	let data;
 	let eventType;
@@ -141,7 +145,7 @@ router.post("/webhook", express.json({ type: "application/json" }), async (req, 
 				paymentIntent: payment_intent,
 				amount: amount_total,
 				currency,
-			});
+			});// you can also add any other details into your db which you recieved from the webhook
 			console.log("Webhook data inserted successfully");
 		} catch (err) {
 			console.error("Error inserting webhook data", err);
@@ -154,7 +158,6 @@ router.post("/webhook", express.json({ type: "application/json" }), async (req, 
 // Razorpay Webhook
 router.post("/razorpay/webhook", async (req, res) => {
 	const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-	console.log("razorpay here");
 	const shasum = crypto.createHmac('sha256', secret);
 	shasum.update(JSON.stringify(req.body));
 	const digest = shasum.digest('hex');
@@ -162,7 +165,7 @@ router.post("/razorpay/webhook", async (req, res) => {
 	if (digest === req.headers['x-razorpay-signature']) {
 		console.log('Request is legit');
 		const eventType = req.body.event;
-
+		//console.log(eventType);
 		if (eventType === 'payment.captured') {
 			const paymentEntity = req.body.payload.payment.entity;
 			const { order_id, id: payment_id, amount, currency, notes } = paymentEntity;
@@ -176,7 +179,7 @@ router.post("/razorpay/webhook", async (req, res) => {
 					amount,
 					currency,
 					eventType,
-				});
+				});// you can also add any other details into your db which you recieved from the webhook
 				console.log("Razorpay webhook data inserted successfully");
 			} catch (err) {
 				console.error("Error inserting Razorpay webhook data", err);
