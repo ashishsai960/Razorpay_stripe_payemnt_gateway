@@ -3,16 +3,11 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const sequelize = new Sequelize(
-    process.env.PG_DB,
-    process.env.PG_USER,
-    process.env.PG_PASS, {
-    host: process.env.PG_HOST,
+const sequelize = new Sequelize('job_portal', 'postgres', '7382252042', {
+    host: 'localhost',
     dialect: 'postgres',
-    port: process.env.PG_PORT,
-}
-);
-
+    port: 5431, // or your specific port
+  });
 const RazorpayWebhookData = sequelize.define('RazorpayWebhookData', {
     userId: {
         type: DataTypes.STRING,
